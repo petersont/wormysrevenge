@@ -9,17 +9,17 @@ function init() {
     
     if( canvas.getContext ) {
         
-	context = canvas.getContext("2d");
-	context.font = "20px";
-	
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	
-	// int_id = setInterval(draw,DT*100);
-	
-	// pygame_draw_rect("#f50", pygame_Rect(30, 10, 100, 300));
+        context = canvas.getContext("2d");
+        context.font = "20px";
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // int_id = setInterval(draw,DT*100);
+        
+        // pygame_draw_rect("#f50", pygame_Rect(30, 10, 100, 300));
 
-	showStartScreen(0);
+        showStartScreen(0);
     }
 }
 
@@ -44,7 +44,7 @@ function erase() {
 }
 
 function drawTitleText(angle1, angle2) {
-	
+        
     context.save();
     
     erase();
@@ -104,18 +104,18 @@ function key_press(event) {
     var code = event.keyCode?event.keyCode:event.which;
     
     if( !isNaN(startscreen_id) ) {
-	cancelAnimationFrame(startscreen_id);
-	startscreen_id = NaN;
+        cancelAnimationFrame(startscreen_id);
+        startscreen_id = NaN;
     }
     
     switch(code) {
     case 112:
-	if( paused == 0 ) {
-	    paused = 1;
-	} else {
-	    paused = 0;
-	}
-	break;
+        if( paused == 0 ) {
+            paused = 1;
+        } else {
+            paused = 0;
+        }
+        break;
     }
     
 }
