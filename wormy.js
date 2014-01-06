@@ -47,7 +47,6 @@ function drawTitleText(angle1, angle2) {
         
     context.save();
     
-    erase();
     context.font = "100px Arial";
     
     context.save();
@@ -71,12 +70,29 @@ function drawTitleText(angle1, angle2) {
     context.restore();
 }
 
+function drawPlayText() {
+    
+    context.save();
+
+    context.font = "40px Arial";
+    context.fillStyle = "#aaa";
+    context.textAlign = "end";
+    context.textBaseline = "bottom";
+    context.fillText("Press any key to play...", canvas.width-10, canvas.height-10);    
+
+    context.restore();
+    
+}
+
 function showStartScreen(t) {
     startscreen_id = requestAnimationFrame(showStartScreen);
 
-    var angle1 = 0.25 * (2*Math.PI*t/1000);
-    var angle2 = 0.15 * (2*Math.PI*t/1000);
-    drawTitleText(angle1, angle2);    
+    erase();
+
+    var angle1 = 0.5 * (2*Math.PI*t/1000);
+    var angle2 = 0.3 * (2*Math.PI*t/1000);
+    drawTitleText(angle1, angle2);
+    drawPlayText();
 }
 
 
