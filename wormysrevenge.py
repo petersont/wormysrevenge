@@ -15,8 +15,8 @@ WINDOWHEIGHT = 480
 CELLSIZE = 20
 assert WINDOWWIDTH % CELLSIZE == 0, "Window width must be a multiple of cell size."
 assert WINDOWHEIGHT % CELLSIZE == 0, "Window height must be a multiple of cell size."
-CELLWIDTH = int(WINDOWWIDTH / CELLSIZE)
-CELLHEIGHT = int(WINDOWHEIGHT / CELLSIZE)
+COLUMNS = int(WINDOWWIDTH / CELLSIZE)
+ROWS = int(WINDOWHEIGHT / CELLSIZE)
 
 #             R    G    B
 WHITE     = (255, 255, 255)
@@ -93,7 +93,7 @@ class Worm:
     def hasHitBounds(self):
         # check if the worm has hit itself or the edge
         head = self.coords[HEAD]
-        if head['x'] < 0 or head['x'] >= CELLWIDTH or head['y'] < 0 or head['y'] == CELLHEIGHT:
+        if head['x'] < 0 or head['x'] >= COLUMNS or head['y'] < 0 or head['y'] == ROWS:
             return True
         return False
     
@@ -131,12 +131,12 @@ class Worm:
 
 
 def runGame():
-    worm1 = Worm(4, int((CELLHEIGHT - 1) / 2), RIGHT)
+    worm1 = Worm(4, int((ROWS - 1) / 2), RIGHT)
     worm1.controls = {K_a:LEFT, K_w:UP, K_s:DOWN, K_d:RIGHT}
     worm1.color = LIGHTBLUE
     worm1.scoreLocation = (80, 10)
     
-    worm2 = Worm(CELLWIDTH - 4, int((CELLHEIGHT - 1) / 2), LEFT)
+    worm2 = Worm(COLUMNS - 4, int((ROWS - 1) / 2), LEFT)
     worm2.controls = {K_LEFT:LEFT, K_UP:UP, K_DOWN:DOWN, K_RIGHT:RIGHT}
     worm2.color = GREEN
     worm2.scoreLocation = (WINDOWWIDTH - 120, 10)
@@ -278,7 +278,7 @@ def terminate():
 
 
 def getRandomLocation():
-    return {'x': random.randint(0, CELLWIDTH - 1), 'y': random.randint(0, CELLHEIGHT - 1)}
+    return {'x': random.randint(0, COLUMNS - 1), 'y': random.randint(0, ROWS - 1)}
 
 
 def showGameOverScreen(winner, color):

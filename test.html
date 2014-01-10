@@ -1,18 +1,20 @@
 
 <html>
-	<head>
-		<script type="application/javascript" src="wormy.js"></script>
-		<style type="text/css">
-			body {
-			  margin: 0px;
-			  padding: 0px;
-                          background-color: #000;
-			}
-		</style>
-	</head>
-	<body onload="init();" onkeypress="key_press(event);">
-		<canvas id="canvas" onmousemove="mouse_move(event);" onclick="mouse_click(event);" onmousedown="mouse_down(event);" onmouseup="mouse_up(event);">
-			Your browser does not support the HTML5 canvas element.
-		</canvas> <br/>
-	</body>
+  <head>
+    <script type="application/javascript" src="wormy.js"></script>
+    <script type="application/javascript" src="Worm.js"></script>
+    <style type="text/css">
+      body {
+        margin: 0px;
+        padding: 0px;
+        background-color: #000;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body onload="init();" onkeypress="key_press(event);">
+    <canvas id="canvas" onmousemove="mouse_move(event);" onclick="mouse_click(event);" onmousedown="mouse_down(event);" onmouseup="mouse_up(event);">
+      Your browser does not support the HTML5 canvas element.
+    </canvas> <br/>
+  </body>
 </html>
