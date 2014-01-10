@@ -1,13 +1,16 @@
 var CANVAS;
 var CONTEXT;
 
+var lastEvent;
+var heldKeys = {};
+
 var STARTSCREENLOOP_ID = NaN;
 var GAMELOOP_ID = NaN;
-
-var GAMEPAUSED = 0;
-
+var GAMEPAUSED = false;
 var GAMEFPS = 10;
-var OPENINGFPS = 30;
+//var OPENINGFPS = 30;
+var TICK;
+
 var WINDOWWIDTH = 640;
 var WINDOWHEIGHT = 480;
 var CELLSIZE = 20;
@@ -16,18 +19,17 @@ var ROWS = 24;
 var CELLWIDTH = 20;
 var CELLHEIGHT = 20;
 
-var WHITE     =  "rgb(255, 255, 255)";
-var BLACK     =  "rgb(  0,   0,   0)";
-var RED       =  "rgb(255,   0,   0)";
-var GREEN     =  "rgb(  0, 255,   0)";
-var BLUE      =  "rgb(  0,   0, 255)";
-var LIGHTBLUE =  "rgb(150, 150, 255)";
-var DARKGREEN =  "rgb(  0, 155,   0)";
-var DARKBLUE  =  "rgb(  0,   0, 150)";
-var GRAY      =  "rgb(100, 100, 100)";
-var DARKGRAY  =  "rgb( 40,  40,  40)";
-var WASHOUT   = "rgba(255, 255, 255, 0.25)";
-var BGCOLOR   = BLACK;
+var WHITE     = new Color(255, 255, 255);
+var BLACK     = new Color(  0,   0,   0);
+var RED       = new Color(255,   0,   0);
+var GREEN     = new Color(  0, 255,   0);
+var BLUE      = new Color(  0,   0, 255);
+var LIGHTBLUE = new Color(150, 150, 255);
+var DARKGREEN = new Color(  0, 155,   0);
+var DARKBLUE  = new Color(  0,   0, 150);
+var GRAY      = new Color(100, 100, 100);
+var DARKGRAY  = new Color( 40,  40,  40);
+var WASHOUT   = new Color(255, 255, 255, 0.25);
 
 var UP = 'up';
 var DOWN = 'down';
@@ -37,8 +39,13 @@ var OPPOSITE = {UP:DOWN, RIGHT:LEFT, LEFT:RIGHT, DOWN:UP};
 
 var HEAD = 0; // syntactic sugar: index of the worm's head
 
+var WORMS = [];
+
 function init() {
     
+    window.onkeydown = key_down;
+    window.onkeyup = key_up;
+
     CANVAS = document.getElementById("canvas");
     
     if( CANVAS.getContext ) {
@@ -82,13 +89,13 @@ function startScreenLoop(t) {
     CONTEXT.translate(CANVAS.width/2, CANVAS.height/2);
     
     CONTEXT.save();
-    CONTEXT.fillStyle = "#029";
+    CONTEXT.fillStyle = LIGHTBLUE.hex();
     CONTEXT.rotate(angle1);
     CONTEXT.fillText("Wormy Online!", 0,0);
     CONTEXT.restore();
     
     CONTEXT.save();
-    CONTEXT.fillStyle = "#08f";
+    CONTEXT.fillStyle = DARKBLUE.hex();
     CONTEXT.rotate(angle2);
     CONTEXT.fillText("Wormy Online!", 0,0);
     CONTEXT.restore();
@@ -101,7 +108,7 @@ function startScreenLoop(t) {
     CONTEXT.save();
 
     CONTEXT.font = "40px Arial";
-    CONTEXT.fillStyle = "#aaa";
+    CONTEXT.fillStyle = GRAY.hex();
     CONTEXT.textAlign = "end";
     CONTEXT.textBaseline = "bottom";
     CONTEXT.fillText("Press a key to play...", CANVAS.width-10, CANVAS.height-10);    
@@ -113,26 +120,28 @@ function startScreenLoop(t) {
 
 function playGame() {
 
-    // worm1 = Worm(4, int((CELLHEIGHT - 1) / 2), RIGHT)
-    // worm1.controls = {K_a:LEFT, K_w:UP, K_s:DOWN, K_d:RIGHT}
-    // worm1.color = LIGHTBLUE
-    // worm1.scoreLocation = (80, 10)
+    var worm1 = new Worm(3, Math.floor((ROWS - 1) / 2), RIGHT);
+    worm1.controls = {K_a:LEFT, K_w:UP, K_s:DOWN, K_d:RIGHT};
+    worm1.scoreLocation = (80, 10);
     
-    // worm2 = Worm(CELLWIDTH - 4, int((CELLHEIGHT - 1) / 2), LEFT)
-    // worm2.controls = {K_LEFT:LEFT, K_UP:UP, K_DOWN:DOWN, K_RIGHT:RIGHT}
-    // worm2.color = GREEN
-    // worm2.scoreLocation = (CANVAS.width - 120, 10)
+    // var worm2 = new Worm(COLUMNS - 4, Math.floor((ROWS - 1) / 2), LEFT, BLUE);
+    // worm2.controls = {K_LEFT:LEFT, K_UP:UP, K_DOWN:DOWN, K_RIGHT:RIGHT};
+    // worm2.scoreLocation = (CANVAS.width - 120, 10);
     
-    // allWorms = [worm1, worm2]
+    WORMS = [worm1];
     
-    // # Start the apple in a random place.
+    // Start the apple in a random place.
     // apples = [getRandomLocation(), getRandomLocation(), getRandomLocation()]
-    
+
+    TICK = 0;
     gameLoop(0);
 }
 
 function gameLoop(t) {
     GAMELOOP_ID = requestAnimationFrame(gameLoop);
+
+    if( GAMEFPS*(t-TICK)/1000 > 1.0 ) {
+        TICK += 1000 / GAMEFPS;
 
         // allEvents = pygame.event.get()
         
@@ -182,19 +191,22 @@ function gameLoop(t) {
         //         newApples.append(apple)
         // apples = newApples
         
-    drawGrid();
+        drawGrid();
         
-    //     for worm in allWorms:
-    //         worm.draw()
+        for( var w=0; w<WORMS.length; w++ ) {
+            WORMS[w].draw();
+        }
         
-    //     for apple in apples:
-    //         drawApple(apple)
+        //     for apple in apples:
+        //         drawApple(apple)
         
-    //     for worm in allWorms:
-    //         worm.drawScore()
+        //     for worm in allWorms:
+        //         worm.drawScore()
         
-    //     pygame.display.update()
-    //     FPSCLOCK.tick(GAMEFPS)
+        //     pygame.display.update()
+        //     FPSCLOCK.tick(GAMEFPS)
+
+    }
     
     // if worm1.lost and worm2.lost:
     //     return "Cat's game", WHITE
@@ -214,7 +226,7 @@ function drawGrid() {
     CONTEXT.save();
 
     CONTEXT.lineWidth = "2";
-    CONTEXT.strokeStyle = DARKGRAY;
+    CONTEXT.strokeStyle = DARKGRAY.hex();
 
     // draw vertical lines
     for(var i=0; i<=COLUMNS; i++ ) {
@@ -240,37 +252,27 @@ function drawPaused() {
     
     CONTEXT.save();
 
-    CONTEXT.fillStyle = WASHOUT;
+    CONTEXT.fillStyle = WASHOUT.rgba();
     CONTEXT.fillRect(0,0,CANVAS.width,CANVAS.height);
 
     CONTEXT.font = "bold 80px Arial";
     CONTEXT.textAlign = "center";
     CONTEXT.textBaseline = "middle";
-    CONTEXT.fillStyle = WHITE;
+    CONTEXT.fillStyle = WHITE.hex();
     CONTEXT.fillText("PAUSED", 0.5*CANVAS.width,0.5*CANVAS.height);    
 
     CONTEXT.restore();
 
 }
 
-function mouse_down(event) {
+function key_down(event) {
     
-}
+    if (lastEvent && lastEvent.keyCode == event.keyCode) {
+        return;
+    }
+    lastEvent = event;
+    heldKeys[event.keyCode] = true;
 
-function mouse_up(event) {
-    
-}
-
-function mouse_move(event) {
-    
-}
-
-function mouse_click(event) {
-    
-}
-
-function key_press(event) {
-    
     // if we're in the start screen
     if( !isNaN(STARTSCREENLOOP_ID) ) {
 
@@ -281,22 +283,28 @@ function key_press(event) {
     // if we're currently playing the game
     } else if( !isNaN(GAMELOOP_ID) ) {
         
-        var code = event.keyCode || event.which;
+        var code = event.which;
     
         switch(code) {
-        case 112:
-            if( !GAMEPAUSED ) {
-                GAMEPAUSED = 1;
+        case 32: // spacebar
+            GAMEPAUSED = !GAMEPAUSED;
+            if( GAMEPAUSED ) {
                 cancelAnimationFrame(GAMELOOP_ID);
+                TICK = null;
                 drawPaused();
             } else {
-                GAMEPAUSED = 0;
+                TICK = 0;
                 gameLoop(0);
             }
             break;
         }
     }
     
+}
+
+function key_up() {
+    lastEvent = null;
+    delete heldKeys[event.keyCode];    
 }
 
 // the animation timer
