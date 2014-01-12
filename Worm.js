@@ -52,24 +52,26 @@ Worm.prototype.advanceDirection = function() {
     }
 }
     
-// Worm.prototype.hasHitBounds = function() {
-//     // check if the worm has hit itself or the edge
-//     head = self.coords[HEAD]
-//     if head['x'] < 0 or head['x'] >= CELLWIDTH or head['y'] < 0 or head['y'] == CELLHEIGHT {
-//         return true;
-//     }
-//     return false;
-// }
+Worm.prototype.hasHitBounds = function() {
+    // check if the worm has hit itself or the edge
+    head = this.coords[HEAD]
+    if( head['x'] < 0 || head['x'] >= COLUMNS || head['y'] < 0 || head['y'] >= ROWS ) {
+        return true;
+    }
+    return false;
+}
     
-// Worm.prototype.hasEaten = function(opponent) {
-//         head = self.coords[HEAD]
-//         start = 0
-//         if opponent == self {
-//             start = 1
-//         for wormBody in opponent.coords[start {] {
-//             if wormBody['x'] == head['x'] and wormBody['y'] == head['y'] {
-//                 return True
-//         return False
+Worm.prototype.hasEaten = function(opponent) {
+    
+    head = this.coords[HEAD];
+    start = opponent==this?1:0;
+
+    for( var i=start; i<opponent.coords.length; i++ )
+        if( opponent.coords[i]['x'] == head['x'] && opponent.coords[i]['y'] == head['y'] )
+            return true;
+
+    return false;
+}
     
 Worm.prototype.advanceHead = function() {
 

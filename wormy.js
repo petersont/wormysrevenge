@@ -7,6 +7,7 @@ var heldKeys = {};
 var STARTSCREENLOOP_ID = NaN;
 var GAMELOOP_ID = NaN;
 var GAMEPAUSED = false;
+var GAMEOVER = false;
 var GAMEFPS = 10;
 //var OPENINGFPS = 30;
 var TICK = null;
@@ -134,7 +135,7 @@ function playGame() {
     worm2.controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
     worm2.scoreLocation = {'x':CANVAS.width - 60, 'y':25};
     
-    WORMS = [worm2];
+    WORMS = [worm1,worm2];
     
     //Start the apple in a random place.
     for( var a=0; a<3; a++ ) {
@@ -156,55 +157,43 @@ function gameLoop(t) {
         while( TICK < t-1000 / GAMEFPS )
             TICK += 1000 / GAMEFPS;
             
-        // allEvents = pygame.event.get()
-        
-        // for event in allEvents:
-        //     if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
-        //         terminate()
-        
-        // eatenApples = []
+        var eatenApples = [];
         
         for( var w=0; w<WORMS.length; w++ ) {
-            //     for event in allEvents: # event handling loop
-            //         if event.type == KEYDOWN:
-            //             worm.processEvent(event)
             
-            WORMS[w].advanceDirection()
+            WORMS[w].advanceDirection();
             
-            //     if worm.hasHitBounds():
-            //         worm.lost = True
+            if( WORMS[w].hasHitBounds() ) {
+                WORMS[w].lost = true;
+            }
             
-            //     for opponent in allWorms:
-            //         if worm.hasEaten(opponent):
-            //             worm.lost = True
+            for( var other=0; other<WORMS.length; other++ )
+                if( WORMS[w].hasEaten(WORMS[other]) )
+                    WORMS[w].lost = true;
             
-            //     # check if worm has eaten an apple
-            //     for apple in apples:
-            //         if worm.hasEatenApple(apple):
-            //             worm.length += 3
-            //             worm.score += 1
-            //             eatenApples.append(apple)
+            // check if worm has eaten an apple
+            for( var a=0; a<APPLES.length; a++ ) {
+                if( WORMS[w].hasEatenApple(APPLES[a]) ) {
+                    WORMS[w].length += 3;
+                    WORMS[w].score += 1;
+                    newApple(a);
+                }
+            }
         }
         
-        // gameover = False
-        // for worm in allWorms:
-        //     if worm.lost:
-        //         gameover = True
-        // if gameover:
-        //     break
+        var gameover = false;
+        for( var w=0; w<WORMS.length; w++ )
+            if( WORMS[w].lost )
+                gameover = true;
+        if( gameover ) {
+            gameOver();
+            return;
+        }
         
         for( var w=0; w<WORMS.length; w++ ) {
             if( !WORMS[w].lost )
                 WORMS[w].advanceHead();
         }
-        
-        // newApples = []
-        // for apple in apples:
-        //     if apple in eatenApples:
-        //         newApples.append(randomLocation())
-        //     else:
-        //         newApples.append(apple)
-        // apples = newApples
         
         drawGrid();
         
@@ -222,16 +211,54 @@ function gameLoop(t) {
         //     pygame.display.update()
         //     FPSCLOCK.tick(GAMEFPS)
         
-        // if worm1.lost and worm2.lost:
-        //     return "Cat's game", WHITE
-        
-        // if worm1.lost:
-        //     return 'Worm 2 wins', worm2.color
-        
-        // if worm2.lost:
-        //     return 'Worm 1 wins', worm1.color
     }
 
+}
+
+function gameOver() {
+
+    cancelAnimationFrame(GAMELOOP_ID);
+    GAMELOOP_ID = NaN;
+    GAMEPAUSED = false;
+    GAMEOVER = true;
+
+    var winner = "", color;
+    if( WORMS[0].lost && WORMS[1].lost ) {
+        winner = "Cat's game";
+        color = new Color(WHITE);
+    } else if( WORMS[0].lost ) {
+        winner = "Worm 2 wins";
+        color = new Color(WORMS[1].color);
+    } else if( WORMS[1].lost ) {
+        winner = "Worm 1 wins";
+        color = new Color(WORMS[0].color);
+    }
+
+    CONTEXT.save();
+
+    CONTEXT.fillStyle = WASHOUT.rgba();
+    CONTEXT.fillRect(0,0,CANVAS.width,CANVAS.height);
+
+    CONTEXT.font = "bold 80px Arial";
+    CONTEXT.textAlign = "center";
+    CONTEXT.textBaseline = "middle";
+    CONTEXT.fillStyle = WHITE.hex();
+    CONTEXT.fillText("GAME OVER", 0.5*CANVAS.width,0.5*CANVAS.height-45);    
+
+    CONTEXT.font = "bold 40px Arial";
+    CONTEXT.fillStyle = color.hex();
+    CONTEXT.fillText(winner, 0.5*CANVAS.width,0.5*CANVAS.height+25);    
+
+    /***** draw cue text *****/
+    CONTEXT.font = "40px Arial";
+    CONTEXT.fillStyle = WHITE.hex();
+    CONTEXT.textAlign = "end";
+    CONTEXT.textBaseline = "bottom";
+    CONTEXT.fillText("Press ESCAPE to play again!", CANVAS.width-10, CANVAS.height-10);    
+    /***** end draw cue text *****/
+
+    CONTEXT.restore();
+    
 }
 
 function drawGrid() {
@@ -275,6 +302,10 @@ function drawApple(coord) {
 
     CONTEXT.restore();
 
+}
+
+function newApple(index) {
+    APPLES[index] = randomLocation();
 }
 
 function drawPaused() {
@@ -328,9 +359,7 @@ function key_down(event) {
     // if we're currently playing the game
     } else if( !isNaN(GAMELOOP_ID) ) {
         
-        var code = event.which;
-    
-        switch(code) {
+        switch(event.which) {
         case 32: // spacebar
             GAMEPAUSED = !GAMEPAUSED;
             if( GAMEPAUSED ) {
@@ -340,15 +369,26 @@ function key_down(event) {
                 gameLoop(0);
             }
             return;
-        case 27:
+        case 27: // escape
             loadGame();
             return;
         }
-
+        
+        // accept no input if the game is paused
+        if( GAMEPAUSED ) return; 
+        
         for( var w=0; w<WORMS.length; w++ ) {
             WORMS[w].processEvent(event);
         }
         
+    } else if( GAMEOVER ) {
+
+        switch(event.which) {
+        case 27: // spacebar
+            loadGame();
+            return;
+        }
+
     }
     
 }
