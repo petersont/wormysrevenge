@@ -7,7 +7,7 @@ function Worm(startx, starty, direction, color) {
 
     this.directionQueue = [];
     this.controls = {};
-    this.scoreLocation = [];
+    this.scoreLocation = {};
     this.length = 3;
     this.score = 0;
     this.lost = false;
@@ -15,6 +15,7 @@ function Worm(startx, starty, direction, color) {
 }
 
 Worm.prototype.draw = function() {
+
     for( var i=0; i<this.coords.length; i++ ) {
         
         x = this.coords[i]['x'] * CELLWIDTH;
@@ -36,20 +37,20 @@ Worm.prototype.hasEatenApple = function(apple) {
     return this.coords[HEAD]['x'] == apple['x'] && this.coords[HEAD]['y'] == apple['y'];
 }
     
-// Worm.prototype.processEvent = function(event) {
-//     if self.controls.has_key(event.key) {
-//         self.directionQueue.append(self.controls[event.key]);
-//     }
-// }
+Worm.prototype.processEvent = function(event) {
+    if( event.which && event.which in this.controls ) {
+        this.directionQueue.push(this.controls[event.which]);
+    }
+}
     
-// Worm.prototype.advanceDirection = function() {
-//     if len(self.directionQueue) {
-//         newDirection = self.directionQueue.pop(0)
-//         if OPPOSITE[newDirection] != self.direction {
-//             self.direction = newDirection
-//         }
-//     }
-// }
+Worm.prototype.advanceDirection = function() {
+    if( this.directionQueue.length > 0 ) {
+        var newDirection = this.directionQueue.pop();
+        if( OPPOSITE[newDirection] != this.direction ) {
+            this.direction = newDirection
+        }
+    }
+}
     
 // Worm.prototype.hasHitBounds = function() {
 //     // check if the worm has hit itself or the edge
@@ -70,24 +71,46 @@ Worm.prototype.hasEatenApple = function(apple) {
 //                 return True
 //         return False
     
-// Worm.prototype.advanceHead = function() {
-//         // move the worm by adding a segment in thedirection it is moving
-//         head = self.coords[HEAD]
-//         newHead = {}
-//         if self.direction == UP {
-//             newHead = {'x': head['x'], 'y': head['y'] - 1}
-//         elif self.direction == DOWN {
-//             newHead = {'x': head['x'], 'y': head['y'] + 1}
-//         elif self.direction == LEFT {
-//             newHead = {'x': head['x'] - 1, 'y': head['y']}
-//         elif self.direction == RIGHT {
-//             newHead = {'x': head['x'] + 1, 'y': head['y']}
-//         if len(self.coords) >= self.length {
-//             self.advanceTail()
-//         self.coords.insert(0, newHead)
+Worm.prototype.advanceHead = function() {
+
+    // move the worm by adding a segment in thedirection it is moving
+    head = this.coords[HEAD];
+    newHead = {};
+
+    switch( this.direction ) {
+    case UP:
+        newHead = {'x': head['x'], 'y': head['y'] - 1};
+        break;
+    case DOWN:
+        newHead = {'x': head['x'], 'y': head['y'] + 1};
+        break;
+    case LEFT:
+        newHead = {'x': head['x'] - 1, 'y': head['y']};
+        break;
+    case RIGHT:
+        newHead = {'x': head['x'] + 1, 'y': head['y']};
+        break;
+    }
+    if( this.coords.length >= this.length ) {
+        this.advanceTail();
+    }
+    this.coords.unshift(newHead);
+}
     
-// Worm.prototype.advanceTail = function() {
-//         del self.coords[-1]
+Worm.prototype.advanceTail = function() {
+    this.coords.pop();
+}
     
-// Worm.prototype.drawScore = function() {
-//         drawScore(self.score, self.scoreLocation, self.color)
+Worm.prototype.drawScore = function() {
+
+    CONTEXT.save();
+
+    CONTEXT.font = "20px Arial";
+    CONTEXT.textAlign = "center";
+    CONTEXT.textBaseline = "middle";
+    CONTEXT.fillStyle = this.color.hex();
+    CONTEXT.fillText("Apples: "+this.score,+this.scoreLocation['x'],this.scoreLocation['y']);    
+
+    CONTEXT.restore();
+
+}
