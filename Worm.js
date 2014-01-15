@@ -21,15 +21,15 @@ Worm.prototype.draw = function() {
         x = this.coords[i]['x'] * CELLWIDTH;
         y = this.coords[i]['y'] * CELLHEIGHT;
 
-        CONTEXT.save();
+        CTX.save();
         
-        CONTEXT.fillStyle = this.color.hex();
-        CONTEXT.fillRect(x, y, CELLWIDTH, CELLHEIGHT);
+        CTX.fillStyle = this.color.hex();
+        CTX.fillRect(x, y, CELLWIDTH, CELLHEIGHT);
         
-        CONTEXT.fillStyle = this.darker.hex();
-        CONTEXT.fillRect(x+0.2*CELLWIDTH, y+0.2*CELLHEIGHT, 0.6*CELLWIDTH, 0.6*CELLHEIGHT);
+        CTX.fillStyle = this.darker.hex();
+        CTX.fillRect(x+0.2*CELLWIDTH, y+0.2*CELLHEIGHT, 0.6*CELLWIDTH, 0.6*CELLHEIGHT);
 
-        CONTEXT.restore();
+        CTX.restore();
     }
 }    
 
@@ -105,14 +105,14 @@ Worm.prototype.advanceTail = function() {
     
 Worm.prototype.drawScore = function() {
 
-    CONTEXT.save();
+    CTX.save();
 
-    CONTEXT.font = "20px Arial";
-    CONTEXT.textAlign = "center";
-    CONTEXT.textBaseline = "middle";
-    CONTEXT.fillStyle = this.color.hex();
-    CONTEXT.fillText("Apples: "+this.score,+this.scoreLocation['x'],this.scoreLocation['y']);    
+    CTX.font = "20px Arial";
+    CTX.textAlign = "center";
+    CTX.textBaseline = "middle";
+    CTX.fillStyle = this.color.hex();
+    CTX.fillText("Apples: "+this.score,+this.scoreLocation['x'],this.scoreLocation['y']);    
 
-    CONTEXT.restore();
+    CTX.restore();
 
 }
