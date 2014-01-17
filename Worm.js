@@ -45,7 +45,7 @@ Worm.prototype.processEvent = function(event) {
     
 Worm.prototype.advanceDirection = function() {
     if( this.directionQueue.length > 0 ) {
-        var newDirection = this.directionQueue.pop();
+        var newDirection = this.directionQueue.shift();
         if( OPPOSITE[newDirection] != this.direction ) {
             this.direction = newDirection
         }

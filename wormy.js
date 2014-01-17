@@ -5,12 +5,13 @@ var lastEvent;
 var heldKeys = {};
 
 var STARTSCREENLOOP_ID = null;
+var SELECTPLAYERSLOOP_ID = null;
+var SELECTDIFFICULTYLOOP_ID = null;
 var GAMELOOP_ID = null;
+var GAMEOVERLOOP_ID = null;
 var GAMEPAUSED = false;
-var GAMEOVER = false;
-var GAMEFPS = 5;
-//var OPENINGFPS = 30;
-var TICK = null;
+
+var GAMEFPS = 10;
 
 var WINDOWWIDTH = 640;
 var WINDOWHEIGHT = 480;
@@ -28,9 +29,15 @@ var BLUE      = new Color(  0,   0, 255);
 var LIGHTBLUE = new Color(150, 150, 255);
 var DARKGREEN = new Color(  0, 155,   0);
 var DARKBLUE  = new Color(  0,   0, 150);
+var LIGHTGRAY = new Color(150, 150, 150);
 var GRAY      = new Color(100, 100, 100);
 var DARKGRAY  = new Color( 40,  40,  40);
-var WASHOUT   = new Color(255, 255, 255, 0.6);
+var WASHOUT   = new Color(255, 255, 255, 0.4);
+
+var CURRENT_CHOICE = 0;
+var PLAYERS = 1;
+var DIFFICULTIES = ["Easy","Normal","Difficult","Insane"];
+var DIFFICULTIES_FPS = [5,10,15,25];
 
 var UP = 'up';
 var DOWN = 'down';
@@ -47,6 +54,7 @@ function init() {
     
     window.onkeydown = key_down;
     window.onkeyup = key_up;
+    // window.onmousemove = mouse_move;
 
     CANVAS = document.getElementById("canvas");
     
@@ -72,7 +80,13 @@ function clearScreen() {
 
 function loadGame() {
     cancelAnimationFrame(GAMELOOP_ID);
+    cancelAnimationFrame(STARTSCREENLOOP_ID);
+    cancelAnimationFrame(SELECTDIFFICULTYLOOP_ID);
+    cancelAnimationFrame(GAMELOOP_ID);
     GAMELOOP_ID = null;
+    SELECTDIFFICULTYLOOP_ID = null;
+    GAMEOVERLOOP_ID = null;
+    CURRENT_CHOICE = 0;
     STARTSCREENLOOP_ID = requestAnimationFrame(startScreenLoop);
 }
 
@@ -139,22 +153,102 @@ function startScreenLoop(t) {
 
 }
 
+function selectPlayersLoop(t) {
+
+    SELECTPLAYERSLOOP_ID = requestAnimationFrame(selectPlayersLoop);
+    clearScreen();
+
+    CTX.save();
+
+    CTX.textAlign = "center";
+    CTX.textBaseline = "middle";
+    CTX.lineWidth = 10;
+    CTX.translate(CANVAS.width/2, CANVAS.height/2);
+
+    // first button
+    CTX.save();
+    CTX.translate(0,-30);
+    if( CURRENT_CHOICE == 0 ) {
+        CTX.strokeStyle = WHITE.hex();
+        CTX.strokeRect(-75,-20,150,40);
+    }
+    CTX.fillStyle = LIGHTGRAY.hex();
+    CTX.fillRect(-75,-20,150,40);
+
+    CTX.fillStyle = BLACK.hex();
+    CTX.font = "bold 30px Arial";
+    CTX.fillText("1 Player",0,0);
+    CTX.restore();
+
+    // second button
+    CTX.save();
+    CTX.translate(0,30);
+    if( CURRENT_CHOICE == 1 ) {
+        CTX.strokeStyle = WHITE.hex();
+        CTX.strokeRect(-75,-20,150,40);
+    }
+    CTX.fillStyle = LIGHTGRAY.hex();
+    CTX.fillRect(-75,-20,150,40);
+
+    CTX.fillStyle = BLACK.hex();
+    CTX.font = "bold 30px Arial";
+    CTX.fillText("2 Players",0,0);
+    CTX.restore();
+
+    CTX.restore();
+
+}
+
+function selectDifficultyLoop(t) {
+
+    SELECTDIFFICULTYLOOP_ID = requestAnimationFrame(selectDifficultyLoop);
+    clearScreen();
+    
+    CTX.save();
+    
+    CTX.textAlign = "center";
+    CTX.textBaseline = "middle";
+    CTX.lineWidth = 10;
+    CTX.translate(CANVAS.width/2, CANVAS.height/2);
+    
+    for( var i=0; i<DIFFICULTIES.length; i++ ) {
+        CTX.save();
+        CTX.translate(0,60*i-90);
+        if( CURRENT_CHOICE == i ) {
+            CTX.strokeStyle = WHITE.hex();
+            CTX.strokeRect(-75,-20,150,40);
+        }
+        CTX.fillStyle = LIGHTGRAY.hex();
+        CTX.fillRect(-75,-20,150,40);
+        
+        CTX.fillStyle = BLACK.hex();
+        CTX.font = "bold 30px Arial";
+        CTX.fillText(DIFFICULTIES[i],0,0);
+        CTX.restore();
+    }
+
+    CTX.restore();
+
+}
+
 function playGame() {
 
     GAMEPAUSED = false;
-    GAMEOVER = false;
     WORMS = [];
     APPLES = [];
 
-    var worm1 = new Worm(3, Math.floor((ROWS-1)/2), RIGHT);
-    worm1.controls = {65:LEFT, 87:UP, 68:RIGHT, 83:DOWN};
-    worm1.scoreLocation = {'x':60, 'y':25};
-    
-    var worm2 = new Worm(COLUMNS-4, Math.floor((ROWS-1)/2), LEFT, BLUE);
-    worm2.controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
-    worm2.scoreLocation = {'x':CANVAS.width - 60, 'y':25};
-    
-    WORMS = [worm1,worm2];
+    var worm1 = new Worm(COLUMNS-4, Math.floor((ROWS-1)/2), LEFT, BLUE);
+    worm1.controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
+    worm1.scoreLocation = {'x':CANVAS.width - 60, 'y':25};
+
+    var worm2 = new Worm(3, Math.floor((ROWS-1)/2), RIGHT, GREEN);
+    worm2.controls = {65:LEFT, 87:UP, 68:RIGHT, 83:DOWN};
+    worm2.scoreLocation = {'x':60, 'y':25};    
+
+    if( PLAYERS == 2 )
+        WORMS = [worm1,worm2];
+    else
+        WORMS = [worm1];
     
     //Start the apple in a random place.
     for( var a=0; a<3; a++ ) {
@@ -196,7 +290,9 @@ function gameLoop(t) {
         if( WORMS[w].lost )
             gameover = true;
     if( gameover ) {
-        gameOver();
+        cancelAnimationInterval(GAMELOOP_ID);
+        GAMELOOP_ID = null;
+        GAMEOVERLOOP_ID = requestAnimationFrame(gameOverLoop);
         return;
     }
     
@@ -204,7 +300,12 @@ function gameLoop(t) {
         if( !WORMS[w].lost )
             WORMS[w].advanceHead();
     }
-    
+
+    drawWorld();
+        
+}
+
+function drawWorld() {
     drawGrid();
     
     for(var a=0; a<APPLES.length; a++ ) {
@@ -218,28 +319,29 @@ function gameLoop(t) {
     for( var w=0; w<WORMS.length; w++ ) {
         WORMS[w].drawScore();
     }
-    //     pygame.display.update()
-    //     FPSCLOCK.tick(GAMEFPS)
-        
 }
 
-function gameOver() {
+function gameOverLoop(t) {
+    GAMEOVERLOOP_ID = requestAnimationFrame(gameOverLoop);
 
-    cancelAnimationInterval(GAMELOOP_ID);
-    GAMELOOP_ID = null;
-    GAMEPAUSED = false;
-    GAMEOVER = true;
+    clearScreen();
+    drawWorld();
 
     var winner = "", color;
-    if( WORMS[0].lost && WORMS[1].lost ) {
-        winner = "Tie game!";
-        color = new Color(WHITE);
-    } else if( WORMS[0].lost ) {
-        winner = "Worm 2 wins!";
-        color = new Color(WORMS[1].color);
-    } else if( WORMS[1].lost ) {
-        winner = "Worm 1 wins!";
-        color = new Color(WORMS[0].color);
+    if( PLAYERS == 2 ) {
+        if( WORMS[0].lost && WORMS[1].lost ) {
+            winner = "Tie game!";
+            color = new Color(WHITE);
+        } else if( WORMS[0].lost ) {
+            winner = "Worm 2 wins!";
+            color = new Color(WORMS[1].color);
+        } else if( WORMS[1].lost ) {
+            winner = "Worm 1 wins!";
+            color = new Color(WORMS[0].color);
+        }
+    } else if( PLAYERS == 1 ) {
+        winner = "Score: "+WORMS[0].score;
+        color = WHITE;
     }
 
     CTX.save();
@@ -320,17 +422,39 @@ function newApple(index) {
 }
 
 function drawPaused() {
+
+    clearScreen();
+    drawWorld();
     
     CTX.save();
 
     CTX.fillStyle = WASHOUT.rgba();
     CTX.fillRect(0,0,CANVAS.width,CANVAS.height);
 
-    CTX.font = "bold 80px Arial";
+    CTX.translate(0.5*CANVAS.width,0.5*CANVAS.height);
+    CTX.font = "bold 50px Arial";
     CTX.textAlign = "center";
     CTX.textBaseline = "middle";
     CTX.fillStyle = BLACK.hex();
-    CTX.fillText("PAUSED", 0.5*CANVAS.width,0.5*CANVAS.height);    
+    CTX.fillText("PAUSED", 0,-50);    
+    CTX.lineWidth = 10;
+
+    var paused_choices = ["Resume","New Game","Exit"];
+    for( var i=0; i<paused_choices.length; i++ ) {
+        CTX.save();
+        CTX.translate(0,60*i+10);
+        if( CURRENT_CHOICE == i ) {
+            CTX.strokeStyle = WHITE.hex();
+            CTX.strokeRect(-85,-20,170,40);
+        }
+        CTX.fillStyle = LIGHTGRAY.hex();
+        CTX.fillRect(-85,-20,170,40);
+        
+        CTX.fillStyle = BLACK.hex();
+        CTX.font = "bold 30px Arial";
+        CTX.fillText(paused_choices[i],0,0);
+        CTX.restore();
+    }
 
     CTX.restore();
 
@@ -365,37 +489,107 @@ function key_down(event) {
 
         cancelAnimationFrame(STARTSCREENLOOP_ID);
         STARTSCREENLOOP_ID = null;
-        playGame();
+        SELECTPLAYERSLOOP_ID = requestAnimationFrame(selectPlayersLoop);
+        //playGame();
+
+    // if we're selecting the number of players
+    } else if( SELECTPLAYERSLOOP_ID != null ) {
+
+        switch(event.which) {
+        case 37: // left
+        case 38: // up
+            CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            break;
+        case 39: // right
+        case 40: // down
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,1);
+            break;
+        case 32: // space
+        case 13: // enter
+            cancelAnimationFrame(SELECTPLAYERSLOOP_ID);
+            SELECTPLAYERSLOOP_ID = null;
+            PLAYERS = CURRENT_CHOICE+1;
+            CURRENT_CHOICE = 1;
+            SELECTDIFFICULTYLOOP_ID = requestAnimationFrame(selectDifficultyLoop);
+            break;
+        }
+
+    // if we're selecting the difficulty
+    } else if( SELECTDIFFICULTYLOOP_ID != null ) {
+
+        switch(event.which) {
+        case 37: // left
+        case 38: // up
+            CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            break;
+        case 39: // right
+        case 40: // down
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,3);
+            break;
+        case 32: // space
+        case 13: // enter
+            cancelAnimationFrame(SELECTDIFFICULTYLOOP_ID);
+            SELECTDIFFICULTYLOOP_ID = null;
+            GAMEFPS = DIFFICULTIES_FPS[CURRENT_CHOICE];
+            CURRENT_CHOICE = 0;
+            playGame();
+            break;
+        }
 
     // if we're currently playing the game
     } else if( GAMELOOP_ID != null ) {
         
         switch(event.which) {
         case 32: // spacebar
-            GAMEPAUSED = !GAMEPAUSED;
-            if( GAMEPAUSED ) {
+            if( !GAMEPAUSED ) {
+                GAMEPAUSED = true;
                 cancelAnimationInterval(GAMELOOP_ID);
+                CURRENT_CHOICE = 0;
                 drawPaused();
-            } else {
-                GAMELOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+                return;
             }
-            return;
-        case 27: // escape
-            loadGame();
-            return;
         }
         
         // accept no input if the game is paused
-        if( GAMEPAUSED ) return; 
+        if( GAMEPAUSED ) {
+            switch(event.which) {
+            case 37: // left
+            case 38: // up
+                CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+                break;
+            case 39: // right
+            case 40: // down
+                CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
+                break;
+            case 13: // enter
+                GAMEPAUSED = false;
+                switch( CURRENT_CHOICE ) {
+                case 0: // resume
+                    GAMELOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+                    break;
+                case 1: // new game
+                    playGame();
+                    break;
+                case 2: // exit
+                    loadGame();
+                    break;
+                }
+                return;
+            }
+            drawPaused();
+            return; 
+        }
         
         for( var w=0; w<WORMS.length; w++ ) {
             WORMS[w].processEvent(event);
         }
         
-    } else if( GAMEOVER ) {
+    // if the game is over
+    } else if( GAMEOVERLOOP_ID != null ) {
 
         switch(event.which) {
-        case 27: // spacebar
+        case 27: // escape
+            cancelAnimationFrame(GAMEOVERLOOP_ID);
             loadGame();
             return;
         }
@@ -409,7 +603,8 @@ function key_up() {
     delete(heldKeys[event.keyCode]);
 }
 
-// the animation timer
+// requestAnimationFrame and cancelAnimationFrame polyfill by Erik Möller
+// see: http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
 (function() {
     var lastTime = 0;
     var vendors = ['webkit', 'moz'];
@@ -456,7 +651,7 @@ function key_up() {
     };
     
     window.cancelAnimationInterval = function(handle) {
-        cancelAnimationFrame(handle.value);
+        cancelAnimationFrame(handle.value);        
     };
     
 }());

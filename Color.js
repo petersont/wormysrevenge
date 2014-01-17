@@ -15,9 +15,9 @@ function Color() {
 }
 
 Color.prototype.hex = function() {
-    return '#'+("0"+this.r.toString(16)).substr(-2)
-        +("0"+this.g.toString(16)).substr(-2)
-        +("0"+this.b.toString(16)).substr(-2);
+    return '#'+("0"+Math.floor(this.r).toString(16)).substr(-2)
+        +("0"+Math.floor(this.g).toString(16)).substr(-2)
+        +("0"+Math.floor(this.b).toString(16)).substr(-2);
 }
 
 Color.prototype.rgb = function() {
