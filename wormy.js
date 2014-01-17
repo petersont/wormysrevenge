@@ -250,9 +250,10 @@ function playGame() {
     else
         WORMS = [worm1];
     
-    //Start the apple in a random place.
-    for( var a=0; a<3; a++ ) {
-        APPLES.push(randomLocation());
+    // on average, 3 apples per 25x25 square
+    var n_apples = Math.floor(3/625*ROWS*COLUMNS);
+    for( var a=0; a<n_apples; a++ ) {
+        APPLES.push(new Apple());
     }
 
     GAMELOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
@@ -263,6 +264,13 @@ function gameLoop(t) {
             
     var eatenApples = [];
     
+    // check if any of the apples have died yet
+    var current_time = new Date().getTime();
+    for( var a=0; a<APPLES.length; a++ ) {
+        if( current_time-APPLES[a].born > APPLES[a].lifespan )
+            APPLES[a] = new Apple();
+    }
+
     for( var w=0; w<WORMS.length; w++ ) {
         
         WORMS[w].advanceDirection();
@@ -280,7 +288,7 @@ function gameLoop(t) {
             if( WORMS[w].hasEatenApple(APPLES[a]) ) {
                 WORMS[w].length += 3;
                 WORMS[w].score += 1;
-                newApple(a);
+                APPLES[a] = new Apple();
             }
         }
     }
@@ -309,7 +317,7 @@ function drawWorld() {
     drawGrid();
     
     for(var a=0; a<APPLES.length; a++ ) {
-        drawApple(APPLES[a]);
+        APPLES[a].draw();
     }
     
     for( var w=0; w<WORMS.length; w++ ) {
@@ -450,7 +458,7 @@ function drawPaused() {
     CTX.fillText("PAUSED", 0,-50);    
     CTX.lineWidth = 10;
 
-    var paused_choices = ["Resume","New Game","Exit"];
+    var paused_choices = ["Resume","Restart","Exit"];
     for( var i=0; i<paused_choices.length; i++ ) {
         CTX.save();
         CTX.translate(0,60*i+10);

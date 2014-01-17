@@ -34,7 +34,7 @@ Worm.prototype.draw = function() {
 }    
 
 Worm.prototype.hasEatenApple = function(apple) {
-    return this.coords[HEAD]['x'] == apple['x'] && this.coords[HEAD]['y'] == apple['y'];
+    return this.coords[HEAD]['x'] == apple.coords['x'] && this.coords[HEAD]['y'] == apple.coords['y'];
 }
     
 Worm.prototype.processEvent = function(event) {
