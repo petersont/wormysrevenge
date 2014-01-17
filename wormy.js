@@ -5,8 +5,8 @@ var lastEvent;
 var heldKeys = {};
 
 var STARTSCREENLOOP_ID = null;
-var SELECTPLAYERSLOOP_ID = null;
-var SELECTDIFFICULTYLOOP_ID = null;
+var SELECTINGPLAYERS = false;
+var SELECTINGDIFFICULTY = false;
 var GAMELOOP_ID = null;
 var GAMEOVERLOOP_ID = null;
 var GAMEPAUSED = false;
@@ -37,7 +37,7 @@ var WASHOUT   = new Color(255, 255, 255, 0.4);
 var CURRENT_CHOICE = 0;
 var PLAYERS = 1;
 var DIFFICULTIES = ["Easy","Normal","Difficult","Insane"];
-var DIFFICULTIES_FPS = [5,10,15,25];
+var DIFFICULTIES_FPS = [5,10,20,35];
 
 var UP = 'up';
 var DOWN = 'down';
@@ -81,10 +81,10 @@ function clearScreen() {
 function loadGame() {
     cancelAnimationFrame(GAMELOOP_ID);
     cancelAnimationFrame(STARTSCREENLOOP_ID);
-    cancelAnimationFrame(SELECTDIFFICULTYLOOP_ID);
     cancelAnimationFrame(GAMELOOP_ID);
     GAMELOOP_ID = null;
-    SELECTDIFFICULTYLOOP_ID = null;
+    SELECTINGPLAYERS = false;
+    SELECTINGDIFFICULTY = false;
     GAMEOVERLOOP_ID = null;
     CURRENT_CHOICE = 0;
     STARTSCREENLOOP_ID = requestAnimationFrame(startScreenLoop);
@@ -153,9 +153,9 @@ function startScreenLoop(t) {
 
 }
 
-function selectPlayersLoop(t) {
+function selectPlayers() {
 
-    SELECTPLAYERSLOOP_ID = requestAnimationFrame(selectPlayersLoop);
+    SELECTINGPLAYERS = true;
     clearScreen();
 
     CTX.save();
@@ -199,9 +199,9 @@ function selectPlayersLoop(t) {
 
 }
 
-function selectDifficultyLoop(t) {
+function selectDifficulty() {
 
-    SELECTDIFFICULTYLOOP_ID = requestAnimationFrame(selectDifficultyLoop);
+    SELECTINGDIFFICULTY = true;
     clearScreen();
     
     CTX.save();
@@ -292,7 +292,7 @@ function gameLoop(t) {
     if( gameover ) {
         cancelAnimationInterval(GAMELOOP_ID);
         GAMELOOP_ID = null;
-        GAMEOVERLOOP_ID = requestAnimationFrame(gameOverLoop);
+        gameOver();
         return;
     }
     
@@ -321,8 +321,8 @@ function drawWorld() {
     }
 }
 
-function gameOverLoop(t) {
-    GAMEOVERLOOP_ID = requestAnimationFrame(gameOverLoop);
+function gameOver() {
+    GAMEOVER = true;
 
     clearScreen();
     drawWorld();
@@ -349,26 +349,37 @@ function gameOverLoop(t) {
     CTX.fillStyle = WASHOUT.rgba();
     CTX.fillRect(0,0,CANVAS.width,CANVAS.height);
 
-    CTX.font = "bold 80px Arial";
+    CTX.translate(0.5*CANVAS.width,0.5*CANVAS.height);
+    CTX.font = "bold 60px Arial";
     CTX.textAlign = "center";
     CTX.textBaseline = "middle";
     CTX.fillStyle = BLACK.hex();
-    CTX.fillText("GAME OVER", 0.5*CANVAS.width,0.5*CANVAS.height-45);    
+    CTX.fillText("GAME OVER",0,-70);    
 
     CTX.font = "bold 40px Arial";
     CTX.fillStyle = color.hex();
     CTX.strokeStyle = BLACK.hex();
     CTX.strokeWidth = 2;
-    CTX.fillText(winner, 0.5*CANVAS.width,0.5*CANVAS.height+25);    
-    CTX.strokeText(winner, 0.5*CANVAS.width,0.5*CANVAS.height+25);    
+    CTX.fillText(winner,0,-25);    
+    CTX.strokeText(winner,0,-25);
 
-    /***** draw cue text *****/
-    CTX.font = "30px Arial";
-    CTX.fillStyle = BLACK.hex();
-    CTX.textAlign = "end";
-    CTX.textBaseline = "bottom";
-    CTX.fillText("Press ESCAPE to play again!", CANVAS.width-10, CANVAS.height-10);    
-    /***** end draw cue text *****/
+    CTX.lineWidth = 10;
+    var choices = ["Retry","Exit"];
+    for( var i=0; i<choices.length; i++ ) {
+        CTX.save();
+        CTX.translate(0,60*i+30);
+        if( CURRENT_CHOICE == i ) {
+            CTX.strokeStyle = WHITE.hex();
+            CTX.strokeRect(-85,-20,170,40);
+        }
+        CTX.fillStyle = LIGHTGRAY.hex();
+        CTX.fillRect(-85,-20,170,40);
+        
+        CTX.fillStyle = BLACK.hex();
+        CTX.font = "bold 30px Arial";
+        CTX.fillText(choices[i],0,0);
+        CTX.restore();
+    }
 
     CTX.restore();
     
@@ -489,47 +500,48 @@ function key_down(event) {
 
         cancelAnimationFrame(STARTSCREENLOOP_ID);
         STARTSCREENLOOP_ID = null;
-        SELECTPLAYERSLOOP_ID = requestAnimationFrame(selectPlayersLoop);
+        selectPlayers();
         //playGame();
 
     // if we're selecting the number of players
-    } else if( SELECTPLAYERSLOOP_ID != null ) {
+    } else if( SELECTINGPLAYERS ) {
 
         switch(event.which) {
         case 37: // left
         case 38: // up
             CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            selectPlayers();
             break;
         case 39: // right
         case 40: // down
             CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,1);
+            selectPlayers();
             break;
-        case 32: // space
         case 13: // enter
-            cancelAnimationFrame(SELECTPLAYERSLOOP_ID);
-            SELECTPLAYERSLOOP_ID = null;
+            SELECTINGPLAYERS = false;
             PLAYERS = CURRENT_CHOICE+1;
             CURRENT_CHOICE = 1;
-            SELECTDIFFICULTYLOOP_ID = requestAnimationFrame(selectDifficultyLoop);
+            selectDifficulty();
             break;
         }
 
     // if we're selecting the difficulty
-    } else if( SELECTDIFFICULTYLOOP_ID != null ) {
+    } else if( SELECTINGDIFFICULTY ) {
 
         switch(event.which) {
         case 37: // left
         case 38: // up
             CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            selectDifficulty();
             break;
         case 39: // right
         case 40: // down
             CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,3);
+            selectDifficulty();
             break;
         case 32: // space
         case 13: // enter
-            cancelAnimationFrame(SELECTDIFFICULTYLOOP_ID);
-            SELECTDIFFICULTYLOOP_ID = null;
+            SELECTINGDIFFICULTY = false;
             GAMEFPS = DIFFICULTIES_FPS[CURRENT_CHOICE];
             CURRENT_CHOICE = 0;
             playGame();
@@ -585,15 +597,33 @@ function key_down(event) {
         }
         
     // if the game is over
-    } else if( GAMEOVERLOOP_ID != null ) {
+    } else if( GAMEOVER ) {
 
         switch(event.which) {
-        case 27: // escape
-            cancelAnimationFrame(GAMEOVERLOOP_ID);
-            loadGame();
+        case 37: // left
+        case 38: // up
+            CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            break;
+        case 39: // right
+        case 40: // down
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
+            break;
+        case 13: // enter
+            GAMEOVER = false;
+            switch( CURRENT_CHOICE ) {
+            case 0: // retry
+                playGame();
+                break;
+            case 1: // exit
+                loadGame();
+                break;
+            }
             return;
         }
-
+        
+        gameOver();
+        return; 
+        
     }
     
 }
