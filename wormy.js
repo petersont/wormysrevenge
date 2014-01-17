@@ -606,7 +606,7 @@ function key_down(event) {
             break;
         case 39: // right
         case 40: // down
-            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,1);
             break;
         case 13: // enter
             GAMEOVER = false;
