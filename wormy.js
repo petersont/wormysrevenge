@@ -4,12 +4,9 @@ var CTX;
 var lastEvent;
 var heldKeys = {};
 
-var STARTSCREENLOOP_ID = null;
-var SELECTINGPLAYERS = false;
-var SELECTINGDIFFICULTY = false;
-var GAMELOOP_ID = null;
-var GAMEOVERLOOP_ID = null;
-var GAMEPAUSED = false;
+var LOOP_ID = null;
+var GAME_STATE = null;
+var GAME_REF = null;
 
 var GAMEFPS = 10;
 
@@ -34,8 +31,13 @@ var GRAY      = new Color(100, 100, 100);
 var DARKGRAY  = new Color( 40,  40,  40);
 var WASHOUT   = new Color(255, 255, 255, 0.4);
 
-var CURRENT_CHOICE = 0;
-var PLAYERS = 1;
+var CURRENT_CHOICE = null;
+var START_INDEX = null;
+var MAX_INDEX = null;
+var MY_INDEX = null;
+
+var MODE = null;
+
 var DIFFICULTIES = ["Easy","Normal","Difficult","Insane"];
 var DIFFICULTIES_FPS = [5,10,20,35];
 
@@ -49,6 +51,12 @@ var HEAD = 0; // syntactic sugar: index of the worm's head
 
 var WORMS = [];
 var APPLES = [];
+
+var LOBBY_LIST;
+
+// Firebase callbacks
+var LOBBY_ADDED;
+var LOBBY_REMOVED;
 
 function init() {
     
@@ -69,8 +77,9 @@ function init() {
         ROWS = Math.floor(CANVAS.height/CELLSIZE);
         CELLWIDTH = CANVAS.width/COLUMNS;
         CELLHEIGHT = CANVAS.height/ROWS;
-        
-        loadGame();
+
+        GAME_STATE = 'title';
+        titleScreen();
     }
 }
 
@@ -78,20 +87,13 @@ function clearScreen() {
     CTX.clearRect(0,0,CANVAS.width,CANVAS.height);
 }
 
-function loadGame() {
-    cancelAnimationFrame(GAMELOOP_ID);
-    cancelAnimationFrame(STARTSCREENLOOP_ID);
-    cancelAnimationFrame(GAMELOOP_ID);
-    GAMELOOP_ID = null;
-    SELECTINGPLAYERS = false;
-    SELECTINGDIFFICULTY = false;
-    GAMEOVERLOOP_ID = null;
-    CURRENT_CHOICE = 0;
-    STARTSCREENLOOP_ID = requestAnimationFrame(startScreenLoop);
+function titleScreen() {
+    GAME_STATE = 'title';
+    LOOP_ID = requestAnimationFrame(titleScreenLoop);
 }
 
-function startScreenLoop(t) {
-    STARTSCREENLOOP_ID = requestAnimationFrame(startScreenLoop);
+function titleScreenLoop(t) {
+    LOOP_ID = requestAnimationFrame(titleScreenLoop);
 
     clearScreen();
 
@@ -155,108 +157,133 @@ function startScreenLoop(t) {
 
 function selectPlayers() {
 
-    SELECTINGPLAYERS = true;
     clearScreen();
-
-    CTX.save();
-
-    CTX.textAlign = "center";
-    CTX.textBaseline = "middle";
-    CTX.lineWidth = 10;
-    CTX.translate(CANVAS.width/2, CANVAS.height/2);
-
-    // first button
-    CTX.save();
-    CTX.translate(0,-30);
-    if( CURRENT_CHOICE == 0 ) {
-        CTX.strokeStyle = WHITE.hex();
-        CTX.strokeRect(-75,-20,150,40);
-    }
-    CTX.fillStyle = LIGHTGRAY.hex();
-    CTX.fillRect(-75,-20,150,40);
-
-    CTX.fillStyle = BLACK.hex();
-    CTX.font = "bold 30px Arial";
-    CTX.fillText("1 Player",0,0);
-    CTX.restore();
-
-    // second button
-    CTX.save();
-    CTX.translate(0,30);
-    if( CURRENT_CHOICE == 1 ) {
-        CTX.strokeStyle = WHITE.hex();
-        CTX.strokeRect(-75,-20,150,40);
-    }
-    CTX.fillStyle = LIGHTGRAY.hex();
-    CTX.fillRect(-75,-20,150,40);
-
-    CTX.fillStyle = BLACK.hex();
-    CTX.font = "bold 30px Arial";
-    CTX.fillText("2 Players",0,0);
-    CTX.restore();
-
-    CTX.restore();
+    drawChoices(["Single Player","Join Game","Create Lobby"],220,40,20);
 
 }
 
 function selectDifficulty() {
 
-    SELECTINGDIFFICULTY = true;
     clearScreen();
+    drawChoices(["Easy","Normal","Difficult","Insane"],150,40,20);
     
-    CTX.save();
-    
-    CTX.textAlign = "center";
-    CTX.textBaseline = "middle";
-    CTX.lineWidth = 10;
-    CTX.translate(CANVAS.width/2, CANVAS.height/2);
-    
-    for( var i=0; i<DIFFICULTIES.length; i++ ) {
-        CTX.save();
-        CTX.translate(0,60*i-90);
-        if( CURRENT_CHOICE == i ) {
-            CTX.strokeStyle = WHITE.hex();
-            CTX.strokeRect(-75,-20,150,40);
-        }
-        CTX.fillStyle = LIGHTGRAY.hex();
-        CTX.fillRect(-75,-20,150,40);
-        
-        CTX.fillStyle = BLACK.hex();
-        CTX.font = "bold 30px Arial";
-        CTX.fillText(DIFFICULTIES[i],0,0);
-        CTX.restore();
-    }
-
-    CTX.restore();
-
 }
 
 function playGame() {
 
-    GAMEPAUSED = false;
+    initializeWorld();
+    LOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+
+}
+
+function initializeWorld() {
+
     WORMS = [];
-    APPLES = [];
 
-    var worm1 = new Worm(COLUMNS-4, Math.floor((ROWS-1)/2), LEFT, BLUE);
-    worm1.controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
-    worm1.scoreLocation = {'x':CANVAS.width - 60, 'y':25};
-
-    var worm2 = new Worm(3, Math.floor((ROWS-1)/2), RIGHT, GREEN);
-    worm2.controls = {65:LEFT, 87:UP, 68:RIGHT, 83:DOWN};
-    worm2.scoreLocation = {'x':60, 'y':25};    
-
-    if( PLAYERS == 2 )
-        WORMS = [worm1,worm2];
-    else
-        WORMS = [worm1];
+    WORMS.push(new Worm(COLUMNS-4, Math.floor((ROWS-1)/2), LEFT, BLUE));
+    WORMS[0].controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
+    WORMS[0].scoreLocation = {'x':CANVAS.width - 60, 'y':25};
     
-    // on average, 3 apples per 25x25 square
-    var n_apples = Math.floor(3/625*ROWS*COLUMNS);
-    for( var a=0; a<n_apples; a++ ) {
-        APPLES.push(new Apple());
+    if( MODE == 'single' ) {
+
+        // on average, 3 apples per 25x25 square
+        var n_apples = Math.floor(3/625*ROWS*COLUMNS);
+        APPLES = [];
+        for( var a=0; a<n_apples; a++ ) {
+            APPLES.push(new Apple());
+        }
+
+    } else if( MODE == 'multi' ) {
+
+        WORMS.push(new Worm(3, Math.floor((ROWS-1)/2), RIGHT, GREEN));
+        WORMS[1].controls = {37:LEFT, 38:UP, 39:RIGHT, 40:DOWN};
+        WORMS[1].scoreLocation = {'x':60, 'y':25};
+
+    }
+    
+}
+
+function drawStarting(countdown) {
+
+    console.log('in drawStarting('+countdown+')');
+
+    if( countdown > 0 ) {
+        setTimeout(function(){drawStarting(countdown-1);},1000)
+    } else if( countdown == 0 ) {
+
+        // listen to the other player
+        var other_index = (MY_INDEX+1)%2;
+        GAME_REF.child('player'+other_index)
+            .on('value',
+                function(snap) {
+                    var data = snap.val();
+                    for( var i=0; i<data.coords.length; i++ ) {
+                        WORMS[other_index].coords[i] = data.coords[i];
+                    }
+                    WORMS[other_index].lost = data.lost;
+                    WORMS[other_index].score = data.score;
+                });
+
+        // listen to the apples (how 'bout 'em?)
+        GAME_REF.child('apples')
+            .on('value',
+                function(snap) {
+                    var data = snap.val();
+                    for( var a=0; a<data.length; a++ ) {
+                        APPLES[a].coords = {'x':data[a].x,'y':data[a].y};
+                        APPLES[a].born = data[a].born;
+                        APPLES[a].lifespan = data[a].lifespan;
+                    }
+                });
+
+        GAME_STATE = 'playing';
+        LOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+
+        return;
+
     }
 
-    GAMELOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+    clearScreen();
+
+    drawWorld();
+
+    CTX.save();
+
+    CTX.fillStyle = WASHOUT.rgba();
+    CTX.fillRect(0,0,CANVAS.width,CANVAS.height);
+
+    CTX.font = 'bold 30px Arial';
+    CTX.textAlign = 'center';
+    CTX.textBaseline = 'middle';
+    CTX.fillStyle = BLACK.hex();
+    CTX.fillText('Starting in '+countdown+'...',0.5*CANVAS.width,0.5*CANVAS.height-20);
+
+    CTX.textAlign = 'start';
+    if( MODE == 'multi' ) {
+        if( MY_INDEX == 0 ) {
+            var lineWidth = CTX.measureText('You are the blue worm!').width;
+            var w1 = CTX.measureText('You are the ').width;
+            var w2 = CTX.measureText('blue').width;
+            CTX.fillStyle = WHITE.hex();
+            CTX.fillText('You are the ',0.5*CANVAS.width-0.5*lineWidth,0.5*CANVAS.height+20);
+            CTX.fillStyle = BLUE.hex();
+            CTX.fillText('blue',0.5*CANVAS.width-0.5*lineWidth+w1,0.5*CANVAS.height+20);
+            CTX.fillStyle = WHITE.hex();
+            CTX.fillText(' worm!',0.5*CANVAS.width-0.5*lineWidth+w1+w2,0.5*CANVAS.height+20);
+        } else if( MY_INDEX == 1 ) {
+            var lineWidth = CTX.measureText('You are the green worm!').width;
+            var w1 = CTX.measureText('You are the ').width;
+            var w2 = CTX.measureText('green').width;
+            CTX.fillStyle = WHITE.hex();
+            CTX.fillText('You are the ',0.5*CANVAS.width-0.5*lineWidth,0.5*CANVAS.height+20);
+            CTX.fillStyle = GREEN.hex();
+            CTX.fillText('green',0.5*CANVAS.width-0.5*lineWidth+w1,0.5*CANVAS.height+20);
+            CTX.fillStyle = WHITE.hex();
+            CTX.fillText(' worm!',0.5*CANVAS.width-0.5*lineWidth+w1+w2,0.5*CANVAS.height+20);
+        }
+    }
+
+    CTX.restore();
 
 }
 
@@ -267,46 +294,114 @@ function gameLoop(t) {
     // check if any of the apples have died yet
     var current_time = new Date().getTime();
     for( var a=0; a<APPLES.length; a++ ) {
-        if( current_time-APPLES[a].born > APPLES[a].lifespan )
+        if( current_time-APPLES[a].born > APPLES[a].lifespan ) {
+            var old_style = APPLES[a].draw_style;
             APPLES[a] = new Apple();
+            APPLES[a].draw_style = old_style;
+
+            if( MODE == 'multi' ) {
+                GAME_REF.child('apples/'+a)
+                .set({'x':APPLES[a].coords.x,
+                      'y':APPLES[a].coords.y,
+                      'born':APPLES[a].born,
+                      'lifespan':APPLES[a].lifespan});
+            }
+
+        }
     }
 
-    for( var w=0; w<WORMS.length; w++ ) {
+    if( MODE == 'single' ) {
+
+        for( var w=0; w<WORMS.length; w++ ) {
+            
+            WORMS[w].advanceDirection();
+            
+            if( WORMS[w].hasHitBounds() ) {
+                WORMS[w].lost = true;
+            }
+            
+            for( var other=0; other<WORMS.length; other++ )
+                if( WORMS[w].hasEaten(WORMS[other]) )
+                    WORMS[w].lost = true;
+            
+            // check if worm has eaten an apple
+            for( var a=0; a<APPLES.length; a++ ) {
+                if( WORMS[w].hasEatenApple(APPLES[a]) ) {
+                    WORMS[w].length += 3;
+                    WORMS[w].score += 1;
+                    var old_style = APPLES[a].draw_style;
+                    APPLES[a] = new Apple();
+                    APPLES[a].draw_style = old_style;
+                }
+            }
+        }
         
-        WORMS[w].advanceDirection();
+        var gameover = false;
+        for( var w=0; w<WORMS.length; w++ )
+            if( WORMS[w].lost )
+                gameover = true;
+        if( gameover ) {
+            cancelAnimationInterval(LOOP_ID);
+            CURRENT_CHOICE = 0;
+            GAME_STATE = 'over';
+            gameOver();
+            return;
+        }
         
-        if( WORMS[w].hasHitBounds() ) {
-            WORMS[w].lost = true;
+        for( var w=0; w<WORMS.length; w++ ) {
+            if( !WORMS[w].lost )
+                WORMS[w].advanceHead();
+        }
+
+    } else if( MODE == 'multi' ) {
+
+        WORMS[MY_INDEX].advanceDirection();
+        
+        if( WORMS[MY_INDEX].hasHitBounds() ) {
+            WORMS[MY_INDEX].lost = true;
         }
         
         for( var other=0; other<WORMS.length; other++ )
-            if( WORMS[w].hasEaten(WORMS[other]) )
-                WORMS[w].lost = true;
+            if( WORMS[MY_INDEX].hasEaten(WORMS[other]) )
+                WORMS[MY_INDEX].lost = true;
         
-        // check if worm has eaten an apple
+        // check if I've eaten an apple
         for( var a=0; a<APPLES.length; a++ ) {
-            if( WORMS[w].hasEatenApple(APPLES[a]) ) {
-                WORMS[w].length += 3;
-                WORMS[w].score += 1;
+            if( WORMS[MY_INDEX].hasEatenApple(APPLES[a]) ) {
+                WORMS[MY_INDEX].length += 3;
+                WORMS[MY_INDEX].score += 1;
+                var old_style = APPLES[a].draw_style;
                 APPLES[a] = new Apple();
+                APPLES[a].draw_style = old_style;
+
+                GAME_REF.child('apples/'+a)
+                    .set({'x':APPLES[a].coords.x,
+                          'y':APPLES[a].coords.y,
+                          'born':APPLES[a].born,
+                          'lifespan':APPLES[a].lifespan});
             }
         }
-    }
-    
-    var gameover = false;
-    for( var w=0; w<WORMS.length; w++ )
-        if( WORMS[w].lost )
-            gameover = true;
-    if( gameover ) {
-        cancelAnimationInterval(GAMELOOP_ID);
-        GAMELOOP_ID = null;
-        gameOver();
-        return;
-    }
-    
-    for( var w=0; w<WORMS.length; w++ ) {
-        if( !WORMS[w].lost )
-            WORMS[w].advanceHead();
+        
+        GAME_REF.child('player'+MY_INDEX)
+            .set({'coords':WORMS[MY_INDEX].coords,
+                  'lost':WORMS[MY_INDEX].lost,
+                  'score':WORMS[MY_INDEX].score});
+
+        if( !WORMS[MY_INDEX].lost )
+            WORMS[MY_INDEX].advanceHead();
+
+        var gameover = false;
+        for( var w=0; w<WORMS.length; w++ )
+            if( WORMS[w].lost )
+                gameover = true;
+        if( gameover ) {
+            cancelAnimationInterval(LOOP_ID);
+            CURRENT_CHOICE = 0;
+            GAME_STATE = 'over';
+            gameOver();
+            return;
+        }
+                
     }
 
     drawWorld();
@@ -330,13 +425,12 @@ function drawWorld() {
 }
 
 function gameOver() {
-    GAMEOVER = true;
 
     clearScreen();
     drawWorld();
 
     var winner = "", color;
-    if( PLAYERS == 2 ) {
+    if( MODE == 'multi' ) {
         if( WORMS[0].lost && WORMS[1].lost ) {
             winner = "Tie game!";
             color = new Color(WHITE);
@@ -347,47 +441,33 @@ function gameOver() {
             winner = "Worm 1 wins!";
             color = new Color(WORMS[0].color);
         }
-    } else if( PLAYERS == 1 ) {
+    } else if( MODE == 'single' ) {
         winner = "Score: "+WORMS[0].score;
         color = WHITE;
     }
 
     CTX.save();
-
     CTX.fillStyle = WASHOUT.rgba();
     CTX.fillRect(0,0,CANVAS.width,CANVAS.height);
+    CTX.restore();
+
+    drawChoices(["Play Again","Exit"],180,40,20);
+ 
+    CTX.save();
 
     CTX.translate(0.5*CANVAS.width,0.5*CANVAS.height);
     CTX.font = "bold 60px Arial";
     CTX.textAlign = "center";
     CTX.textBaseline = "middle";
     CTX.fillStyle = BLACK.hex();
-    CTX.fillText("GAME OVER",0,-70);    
+    CTX.fillText("GAME OVER",0,-140);
 
     CTX.font = "bold 40px Arial";
     CTX.fillStyle = color.hex();
     CTX.strokeStyle = BLACK.hex();
     CTX.strokeWidth = 2;
-    CTX.fillText(winner,0,-25);    
-    CTX.strokeText(winner,0,-25);
-
-    CTX.lineWidth = 10;
-    var choices = ["Retry","Exit"];
-    for( var i=0; i<choices.length; i++ ) {
-        CTX.save();
-        CTX.translate(0,60*i+30);
-        if( CURRENT_CHOICE == i ) {
-            CTX.strokeStyle = WHITE.hex();
-            CTX.strokeRect(-85,-20,170,40);
-        }
-        CTX.fillStyle = LIGHTGRAY.hex();
-        CTX.fillRect(-85,-20,170,40);
-        
-        CTX.fillStyle = BLACK.hex();
-        CTX.font = "bold 30px Arial";
-        CTX.fillText(choices[i],0,0);
-        CTX.restore();
-    }
+    CTX.fillText(winner,0,-95);    
+    CTX.strokeText(winner,0,-95);
 
     CTX.restore();
     
@@ -436,6 +516,115 @@ function drawApple(coord) {
 
 }
 
+function drawChoices(choices,w,h,spacing) {
+
+    w = w || 150;
+    h = h || 40;
+    spacing = spacing || 20;
+
+    CTX.save();
+
+    CTX.textAlign = "center";
+    CTX.textBaseline = "middle";
+    CTX.lineWidth = 10;
+    CTX.translate(0.5*CANVAS.width, 0.5*CANVAS.height);
+
+    for( var i=0; i<choices.length; i++ ) {
+        CTX.save();
+        if( CURRENT_CHOICE == i ) {
+            CTX.strokeStyle = WHITE.hex();
+            CTX.strokeRect(-0.5*w,-(0.5*h*choices.length+0.5*spacing*(choices.length-1))+i*(h+spacing),w,h);
+        }
+        CTX.fillStyle = LIGHTGRAY.hex();
+        CTX.fillRect(-0.5*w,-(0.5*h*choices.length+0.5*spacing*(choices.length-1))+i*(h+spacing),w,h);
+        
+        CTX.fillStyle = BLACK.hex();
+        CTX.font = "bold "+(h-10)+"px Arial";
+        CTX.fillText(choices[i],0,-(0.5*h*choices.length+0.5*spacing*(choices.length-1))+i*(h+spacing)+0.5*h);
+        CTX.restore();
+    }
+    
+    CTX.restore();
+
+}
+
+function drawLobbyList() {
+
+    var btn_w = 130;
+    var btn_h = 30;
+    var btn_spacing = 20;
+    var num_offset = 60;
+    MAX_INDEX = Math.floor(CANVAS.height/(btn_h+btn_spacing))-1;
+    btn_spacing = (CANVAS.height-btn_h*(MAX_INDEX+1))/(MAX_INDEX+2);
+
+    clearScreen();
+
+    CTX.save();
+    CTX.font = 'bold '+(0.75*btn_h)+'px Arial';
+    CTX.textBaseline = 'middle';
+    CTX.lineWidth = 10;
+
+    if( LOBBY_LIST.length == 0 ) {
+        CTX.save();
+        CTX.textAlign = 'start';
+        CTX.fillStyle = WHITE.hex();
+        CTX.fillText('No games are currently available...',num_offset+btn_spacing,btn_spacing+0.5*btn_h);
+        CTX.restore();
+        CURRENT_CHOICE = 0;
+    }
+
+    for( var i=START_INDEX; i<Math.min(LOBBY_LIST.length,START_INDEX+MAX_INDEX+1); i++ ) {
+
+        var y = btn_spacing+(i-START_INDEX)*(btn_h+btn_spacing);
+        
+        CTX.save();
+        
+        if( CURRENT_CHOICE == i-START_INDEX ) {
+            CTX.strokeStyle = WHITE.hex();
+            CTX.strokeRect(num_offset+btn_spacing,y,btn_w,btn_h);
+        }
+        CTX.fillStyle = GRAY.hex();
+        CTX.fillRect(num_offset+btn_spacing,y,btn_w,btn_h);
+
+        CTX.textAlign = 'end';
+        CTX.fillStyle = WHITE.hex();
+        CTX.fillText((i+1)+'.',num_offset,y+0.5*btn_h);
+        
+        CTX.textAlign = 'center';
+        CTX.fillStyle = BLACK.hex();
+        CTX.fillText('Join Game',num_offset+btn_spacing+0.5*btn_w,y+0.5*btn_h);
+
+        CTX.textAlign = 'start';
+        CTX.fillStyle = WHITE.hex();
+        CTX.fillText('Difficulty: '+DIFFICULTIES[LOBBY_LIST[i].difficulty],num_offset+2*btn_spacing+btn_w,y+0.5*btn_h);
+        CTX.restore();
+
+    }
+
+    CTX.restore();
+
+}
+
+
+function drawWaiting() {
+
+    clearScreen();
+    
+    CTX.save();
+
+    CTX.translate(0.5*CANVAS.width,0.5*CANVAS.height);
+    
+    CTX.font = 'bold 40px Arial';
+    CTX.textAlign = 'center';
+    CTX.textBaseline = 'middle';
+    CTX.fillStyle = WHITE.hex();
+    
+    CTX.fillText("Waiting for a player to join...",0,0);
+
+    CTX.restore();
+    
+}
+
 function newApple(index) {
     APPLES[index] = randomLocation();
 }
@@ -450,32 +639,16 @@ function drawPaused() {
     CTX.fillStyle = WASHOUT.rgba();
     CTX.fillRect(0,0,CANVAS.width,CANVAS.height);
 
-    CTX.translate(0.5*CANVAS.width,0.5*CANVAS.height);
     CTX.font = "bold 50px Arial";
     CTX.textAlign = "center";
     CTX.textBaseline = "middle";
     CTX.fillStyle = BLACK.hex();
-    CTX.fillText("PAUSED", 0,-50);    
+    CTX.fillText("PAUSED", 0.5*CANVAS.width,0.5*CANVAS.height-120);    
     CTX.lineWidth = 10;
 
-    var paused_choices = ["Resume","Restart","Exit"];
-    for( var i=0; i<paused_choices.length; i++ ) {
-        CTX.save();
-        CTX.translate(0,60*i+10);
-        if( CURRENT_CHOICE == i ) {
-            CTX.strokeStyle = WHITE.hex();
-            CTX.strokeRect(-85,-20,170,40);
-        }
-        CTX.fillStyle = LIGHTGRAY.hex();
-        CTX.fillRect(-85,-20,170,40);
-        
-        CTX.fillStyle = BLACK.hex();
-        CTX.font = "bold 30px Arial";
-        CTX.fillText(paused_choices[i],0,0);
-        CTX.restore();
-    }
-
     CTX.restore();
+
+    drawChoices(["Resume","Restart","Exit"]);
 
 }
 
@@ -491,8 +664,8 @@ function key_down(event) {
     lastEvent = event;
     heldKeys[event.which] = true;
 
-    // if we're in the start screen
-    if( STARTSCREENLOOP_ID != null ) {
+    // if we're in the title screen
+    if( GAME_STATE == 'title' ) {
 
         // we don't want actual command keys actually starting the game
         switch( event.which ) {
@@ -506,13 +679,13 @@ function key_down(event) {
             return;
         }
 
-        cancelAnimationFrame(STARTSCREENLOOP_ID);
-        STARTSCREENLOOP_ID = null;
+        cancelAnimationFrame(LOOP_ID);
+        CURRENT_CHOICE = 0;
+        GAME_STATE = 'mode';
         selectPlayers();
-        //playGame();
 
-    // if we're selecting the number of players
-    } else if( SELECTINGPLAYERS ) {
+    // if we're selecting single vs. multiplayer
+    } else if( GAME_STATE == 'mode' ) {
 
         switch(event.which) {
         case 37: // left
@@ -522,19 +695,57 @@ function key_down(event) {
             break;
         case 39: // right
         case 40: // down
-            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,1);
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
             selectPlayers();
             break;
         case 13: // enter
-            SELECTINGPLAYERS = false;
-            PLAYERS = CURRENT_CHOICE+1;
-            CURRENT_CHOICE = 1;
-            selectDifficulty();
+            switch( CURRENT_CHOICE ) {
+            case 0: // single player
+                MODE = 'single';
+                CURRENT_CHOICE = 1;
+                GAME_STATE = 'difficulty';
+                selectDifficulty();
+                break;
+            case 1: // join game
+                MODE = 'multi';
+                CURRENT_CHOICE = 0;
+                GAME_STATE = 'joining';
+
+                var waitingRef = new Firebase('https://crackling-fire-6808.firebaseio.com/wormy/waiting');
+                LOBBY_LIST = [];
+                START_INDEX = 0;
+                LOBBY_ADDED = waitingRef.on('child_added',function(snapshot) {
+                    var v = snapshot.val();
+                    v.name = snapshot.name();
+                    LOBBY_LIST.push(v);
+                    drawLobbyList();
+                });
+                LOBBY_REMOVED = waitingRef.on('child_removed',function(snapshot) {
+                    var n = snapshot.name();
+                    for( var i=0; i<LOBBY_LIST.length; i++ ) {
+                        if( LOBBY_LIST[i].name == n ) {
+                            LOBBY_LIST.splice(i,1);
+                            break;
+                        }
+                    }
+                    drawLobbyList();
+                });
+                drawLobbyList();
+
+                break;
+
+            case 2: // create game
+                MODE = 'multi';
+                CURRENT_CHOICE = 1;
+                GAME_STATE = 'difficulty';
+                selectDifficulty();
+                break;
+            }
             break;
         }
 
     // if we're selecting the difficulty
-    } else if( SELECTINGDIFFICULTY ) {
+    } else if( GAME_STATE == 'difficulty' ) {
 
         switch(event.which) {
         case 37: // left
@@ -542,70 +753,272 @@ function key_down(event) {
             CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
             selectDifficulty();
             break;
+
         case 39: // right
         case 40: // down
             CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,3);
             selectDifficulty();
             break;
+
         case 32: // space
         case 13: // enter
-            SELECTINGDIFFICULTY = false;
             GAMEFPS = DIFFICULTIES_FPS[CURRENT_CHOICE];
-            CURRENT_CHOICE = 0;
-            playGame();
+
+            // if we're creating a lobby
+            if( MODE == 'multi' ) {
+                var waitingRef = new Firebase('https://crackling-fire-6808.firebaseio.com/wormy/waiting');
+                var pushRef = waitingRef.push();
+                var gameID = pushRef.name();
+                pushRef.set({difficulty:CURRENT_CHOICE,fps:GAMEFPS,dim:[ROWS,COLUMNS]},function(error){
+                    pushRef.on('value',function(snapshot) {
+
+                        // wait until the second player has removed this game
+                        // from the 'waiting' list to the 'games' list
+                        if( snapshot.val() == null ) {
+                            GAME_REF = new Firebase('https://crackling-fire-6808.firebaseio.com/wormy/games').child(gameID);
+                            GAME_REF.onDisconnect().remove();
+                            
+                            GAME_REF.transaction(function(snappy) {
+                                
+                                if( snappy != null ) {
+
+                                    ROWS = snappy.dim[0];
+                                    COLUMNS = snappy.dim[1];
+                                    
+                                    // try to be player 1, if possible
+                                    if( !('player0' in snappy) ) {
+                                        MY_INDEX = 0;
+
+                                        // since I got access to the game first, I'll set up the apples
+                                        APPLES = [];
+                                        snappy.apples = [];
+                                        var n_apples = Math.floor(3/625*ROWS*COLUMNS);
+                                        for( var a=0; a<n_apples; a++ ) {
+                                            APPLES.push(new Apple());
+                                            snappy.apples.push(APPLES[a].coords);
+                                            snappy.apples[a].born = APPLES[a].born;
+                                            snappy.apples[a].lifespan = APPLES[a].lifespan;
+                                        }
+
+                                    } else { // otherwise we're player 2
+                                        MY_INDEX = 1;
+
+                                        // otherwise I got to the game second, so I'll read the apples
+                                        APPLES = [];
+                                        for( var a=0; a<snappy.apples.length; a++ ) {
+                                            APPLES.push(new Apple());
+                                            APPLES[a].coords = {'x':snappy.apples[a].x,'y':snappy.apples[a].y};
+                                            APPLES[a].born = snappy.apples[a].born;
+                                            APPLES[a].lifespan = snappy.apples[a].lifespan;
+                                        }
+
+                                    }
+
+                                    // correct playing field size, if necessary
+                                    var d = snappy.dim;
+
+                                    initializeWorld();
+                                    snappy['player'+MY_INDEX] = new Object();
+                                    snappy['player'+MY_INDEX].coords = WORMS[MY_INDEX].coords;
+                                    snappy['player'+MY_INDEX].lost = WORMS[MY_INDEX].lost;
+                                    snappy['player'+MY_INDEX].score = WORMS[MY_INDEX].score;
+                                    
+                                }
+                                    
+                                return snappy;
+                                
+                            }, function(error,commited,snap){
+                                if( commited ) {
+                                    GAME_STATE = 'starting';
+                                    drawStarting(5);
+                                }
+                            });
+                        }
+
+                    });
+
+                });
+                pushRef.onDisconnect().remove();
+                GAME_STATE = 'waiting';
+                drawWaiting();
+
+            // otherwise we're in single-player mode
+            } else if( MODE == 'single' ) {
+                GAME_STATE = 'playing';
+                playGame();
+            }
             break;
         }
 
+    // if we're choosing a game to join
+    } else if( GAME_STATE == 'joining' ) {
+ 
+        switch(event.which) {
+
+        case 37: // left
+        case 38: // up
+            if( CURRENT_CHOICE == 0 ) {
+                START_INDEX = Math.max(START_INDEX-1,0);
+            }
+            CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            drawLobbyList();
+            break;
+
+        case 39: // right
+        case 40: // down
+            if( CURRENT_CHOICE == MAX_INDEX ) {
+                START_INDEX = Math.min(START_INDEX+1,LOBBY_LIST.length-MAX_INDEX-1);
+            }
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,Math.min(MAX_INDEX,LOBBY_LIST.length-1));
+            drawLobbyList();
+            break;
+        case 32: // space
+        case 13: // enter
+
+            var waitingRef = new Firebase('https://crackling-fire-6808.firebaseio.com/wormy/waiting');
+            waitingRef.off('child_added');
+            waitingRef.off('child_removed');
+
+            // correct the size of the playing field, if needed
+            var d = LOBBY_LIST[CURRENT_CHOICE+START_INDEX].dim;
+            ROWS = Math.min(d[0],ROWS);
+            COLUMNS = Math.min(d[1],COLUMNS);
+            LOBBY_LIST[CURRENT_CHOICE+START_INDEX].dim = [ROWS,COLUMNS];
+
+            // first create the GAME_REF
+            var gameID = LOBBY_LIST[CURRENT_CHOICE+START_INDEX].name;
+            GAME_REF = new Firebase('https://crackling-fire-6808.firebaseio.com/wormy/games/'+gameID);
+            GAME_REF.onDisconnect().remove();
+            GAME_REF.set(LOBBY_LIST[CURRENT_CHOICE+START_INDEX],function(error){
+                GAME_REF.transaction(function(snappy) {
+                    
+                    if( snappy != null ) {
+                        
+                        // try to be first player, if possible
+                        if( !('player0' in snappy) ) {
+                            MY_INDEX = 0;
+
+                            // since I got access to the game first, I'll set up the apples
+                            APPLES = [];
+                            snappy.apples = [];
+                            var n_apples = Math.floor(3/625*ROWS*COLUMNS);
+                            for( var a=0; a<n_apples; a++ ) {
+                                APPLES.push(new Apple());
+                                snappy.apples.push(APPLES[a].coords);
+                                snappy.apples[a].born = APPLES[a].born;
+                                snappy.apples[a].lifespan = APPLES[a].lifespan;
+                            }                            
+                            
+                        } else { // otherwise we're player 2
+                            MY_INDEX = 1;
+
+                            // otherwise I got to the game second, so I'll read the apples
+                            APPLES = [];
+                            for( var a=0; a<snappy.apples.length; a++ ) {
+                                APPLES.push(new Apple());
+                                APPLES[a].coords = {'x':snappy.apples[a].x,'y':snappy.apples[a].y};
+                                APPLES[a].born = snappy.apples[a].born;
+                                APPLES[a].lifespan = snappy.apples[a].lifespan;
+                            }
+                            
+                        }
+                        
+                        initializeWorld();
+                        snappy['player'+MY_INDEX] = new Object();
+                        snappy['player'+MY_INDEX].coords = WORMS[MY_INDEX].coords;
+                        snappy['player'+MY_INDEX].lost = WORMS[MY_INDEX].lost;
+                        snappy['player'+MY_INDEX].score = WORMS[MY_INDEX].score;
+                        
+                    }
+                    
+                    return snappy;
+
+                }, function(error,commited,snap){
+                    if( commited ) {
+                        GAME_STATE = 'starting';
+                        drawStarting(5);    
+                    }                            
+                });
+            });
+            
+            // then remove the waitingRef, notifying the other player to begin
+            waitingRef.child(gameID).remove();
+
+            break;
+        }       
+
+    // if we're waiting for someone to join our game
+    } else if( GAME_STATE == 'waiting' ) {
+
+
     // if we're currently playing the game
-    } else if( GAMELOOP_ID != null ) {
+    } else if( GAME_STATE == 'playing' ) {
         
         switch(event.which) {
         case 32: // spacebar
-            if( !GAMEPAUSED ) {
-                GAMEPAUSED = true;
-                cancelAnimationInterval(GAMELOOP_ID);
+            if( MODE == 'single' ) {
+                cancelAnimationInterval(LOOP_ID);
                 CURRENT_CHOICE = 0;
+                GAME_STATE = 'paused';
                 drawPaused();
                 return;
             }
-        }
-        
-        // accept no input if the game is paused
-        if( GAMEPAUSED ) {
-            switch(event.which) {
-            case 37: // left
-            case 38: // up
-                CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
-                break;
-            case 39: // right
-            case 40: // down
-                CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
-                break;
-            case 13: // enter
-                GAMEPAUSED = false;
-                switch( CURRENT_CHOICE ) {
-                case 0: // resume
-                    GAMELOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
-                    break;
-                case 1: // new game
-                    playGame();
-                    break;
-                case 2: // exit
-                    loadGame();
-                    break;
+        case 83: // 's'
+            
+            // toggle the color style/draw style
+            if( MODE == 'single' ) {
+                if( WORMS[0].color_style == 'rainbow' ) {
+                    WORMS[0].color_style = 'default';
+                    for( var a=0; a<APPLES.length; a++ ) {
+                        APPLES[a].draw_style = 'default';
+                    }
+                } else {
+                    WORMS[0].color_style = 'rainbow';
+                    for( var a=0; a<APPLES.length; a++ ) {
+                        APPLES[a].draw_style = 'sparkle';
+                    }
                 }
-                return;
             }
-            drawPaused();
-            return; 
-        }
+            break;
+        }        
         
         for( var w=0; w<WORMS.length; w++ ) {
             WORMS[w].processEvent(event);
         }
         
+        // accept no input if the game is paused
+    } else if( GAME_STATE == 'paused' ) {
+        switch(event.which) {
+        case 37: // left
+        case 38: // up
+            CURRENT_CHOICE = Math.max(CURRENT_CHOICE-1,0);
+            break;
+        case 39: // right
+        case 40: // down
+            CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,2);
+            break;
+        case 13: // enter
+            switch( CURRENT_CHOICE ) {
+            case 0: // resume
+                GAME_STATE = 'playing';
+                LOOP_ID = requestAnimationInterval(gameLoop,1000/GAMEFPS);
+                break;
+            case 1: // new game
+                GAME_STATE = 'playing';
+                playGame();
+                break;
+            case 2: // exit
+                GAME_STATE = 'title';
+                titleScreen();
+                break;
+            }
+            return;
+        }
+        drawPaused();
+        return; 
+        
     // if the game is over
-    } else if( GAMEOVER ) {
+    } else if( GAME_STATE == 'over' ) {
 
         switch(event.which) {
         case 37: // left
@@ -617,13 +1030,14 @@ function key_down(event) {
             CURRENT_CHOICE = Math.min(CURRENT_CHOICE+1,1);
             break;
         case 13: // enter
-            GAMEOVER = false;
             switch( CURRENT_CHOICE ) {
             case 0: // retry
+                GAME_STATE = 'playing';
                 playGame();
                 break;
             case 1: // exit
-                loadGame();
+                GAME_STATE = 'title';
+                titleScreen();
                 break;
             }
             return;

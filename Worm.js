@@ -3,7 +3,6 @@ function Worm(startx, starty, direction, color) {
     this.coords = [{'x': startx, 'y': starty}];
     this.direction = direction;
     this.color = new Color(color || GREEN);
-    this.darker = this.color.darken();
 
     this.directionQueue = [];
     this.controls = {};
@@ -11,6 +10,8 @@ function Worm(startx, starty, direction, color) {
     this.length = 3;
     this.score = 0;
     this.lost = false;
+
+    this.color_style = 'default';
     
 }
 
@@ -23,10 +24,18 @@ Worm.prototype.draw = function() {
 
         CTX.save();
         
-        CTX.fillStyle = this.color.hex();
+        var c;
+        if( this.color_style == 'rainbow' ){
+            c = Color.from_hsl(2*Math.PI*i/this.coords.length,1.0,0.5);
+        } else {
+            c = new Color(this.color);
+        }
+        d = (new Color(c)).darken();
+
+        CTX.fillStyle = c.hex();
         CTX.fillRect(x, y, CELLWIDTH, CELLHEIGHT);
         
-        CTX.fillStyle = this.darker.hex();
+        CTX.fillStyle = d.hex();
         CTX.fillRect(x+0.2*CELLWIDTH, y+0.2*CELLHEIGHT, 0.6*CELLWIDTH, 0.6*CELLHEIGHT);
 
         CTX.restore();
